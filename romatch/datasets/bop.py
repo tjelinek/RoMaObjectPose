@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+
 from PIL import Image
 import h5py
 import numpy as np
@@ -178,31 +180,33 @@ class BopScene:
 
 
 class BOPBuilder:
-    def __init__(self, data_root="data/megadepth", loftr_ignore=True, imc21_ignore = True) -> None:
-        self.data_root = data_root
-        self.scene_info_root = os.path.join(data_root, "prep_scene_info")
-        self.all_scenes = os.listdir(self.scene_info_root)
-        self.test_scenes = ["0017.npy", "0004.npy", "0048.npy", "0013.npy"]
-        # LoFTR did the D2-net preprocessing differently than we did and got more ignore scenes, can optionially ignore those
-        self.loftr_ignore_scenes = set(['0121.npy', '0133.npy', '0168.npy', '0178.npy', '0229.npy', '0349.npy', '0412.npy', '0430.npy', '0443.npy', '1001.npy', '5014.npy', '5015.npy', '5016.npy'])
-        self.imc21_scenes = set(['0008.npy', '0019.npy', '0021.npy', '0024.npy', '0025.npy', '0032.npy', '0063.npy', '1589.npy'])
-        self.test_scenes_loftr = ["0015.npy", "0022.npy"]
-        self.loftr_ignore = loftr_ignore
-        self.imc21_ignore = imc21_ignore
+    def __init__(self, data_root=Path("/mnt/personal/jelint19/data/bop")) -> None:
+        self.data_root: Path = data_root
 
-    def build_scenes(self, split="train", min_overlap=0.0, scene_names = None, **kwargs):
+    def build_scenes(self, dataset: str, split="train", min_overlap=0.0, scene_names=None, **kwargs):
+        path_to_scene = self.data_root / dataset / 'train_pbr'
+        all_scenes = np.array(os.listdir(path_to_scene))
+
+        np.random.seed(42)
+        indices = np.arange(len(all_scenes))
+        np.random.shuffle(indices)
+        train_delim = int(len(all_scenes) * 0.7)
+
+        train_split = indices[:train_delim]
+        val_split = indices[train_delim:]
+
+        train_scenes = all_scenes[train_split]
+        val_scenes = all_scenes[val_split]
+
         if split == "train":
-            scene_names = set(self.all_scenes) - set(self.test_scenes)
-        elif split == "train_loftr":
-            scene_names = set(self.all_scenes) - set(self.test_scenes_loftr)
+            scene_names = train_scenes
         elif split == "test":
-            scene_names = self.test_scenes
-        elif split == "test_loftr":
-            scene_names = self.test_scenes_loftr
+            scene_names = val_scenes
         elif split == "custom":
             scene_names = scene_names
         else:
             raise ValueError(f"Split {split} not available")
+
         scenes = []
         for scene_name in scene_names:
             if self.loftr_ignore and scene_name in self.loftr_ignore_scenes:
