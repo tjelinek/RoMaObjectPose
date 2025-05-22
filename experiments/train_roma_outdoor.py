@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+
 import torch
 from argparse import ArgumentParser
 
@@ -165,7 +167,65 @@ def get_model(pretrained_backbone=True, resolution = "medium", **kwargs):
         use_vgg = True,
     )
     matcher = RegressionMatcher(encoder, decoder, h=h, w=w,**kwargs)
+
+    if checkpoint_path is not None:
+        print(f"Loading checkpoint from {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=True)
+
+        # Remove 'module.' prefix if present (from DataParallel training)
+        new_state_dict = {}
+        for key, value in checkpoint.items():
+            if key.startswith('module.'):
+                breakpoint()
+            new_key = key.replace('module.', '') if key.startswith('module.') else key
+            new_state_dict[new_key] = value
+
+        # Load the state dict, allowing for some mismatched keys
+        try:
+            matcher.load_state_dict(new_state_dict, strict=True)
+            print("Checkpoint loaded successfully (strict mode)")
+        except RuntimeError as e:
+            print(f"Strict loading failed: {e}")
+            print("Trying non-strict loading...")
+            missing_keys, unexpected_keys = matcher.load_state_dict(new_state_dict, strict=False)
+            if missing_keys:
+                raise ValueError(f"Missing keys: {missing_keys}")
+                # print(f"Missing keys: {missing_keys}")
+            if unexpected_keys:
+                raise ValueError(f"Unexpected keys: {unexpected_keys}")
+                # print(f"Unexpected keys: {unexpected_keys}")
+            print("Checkpoint loaded with some mismatched keys")
+
     return matcher
+
+
+def get_model_for_finetuning(checkpoint_path: Path, resolution="medium", freeze_backbone=False, **kwargs):
+    """
+    Load model from checkpoint specifically for fine-tuning.
+
+    Args:
+        checkpoint_path: Path to the checkpoint file
+        resolution: Model resolution
+        freeze_backbone: Whether to freeze the backbone encoder for fine-tuning
+        **kwargs: Additional arguments
+    """
+    # Load the model architecture (without pretrained backbone since we're loading from checkpoint)
+    matcher = get_model(pretrained_backbone=False, resolution=resolution,
+                        checkpoint_path=checkpoint_path, **kwargs)
+
+    # Optionally freeze parts of the model for fine-tuning
+    if freeze_backbone:
+        print("Freezing backbone encoder...")
+        for param in matcher.encoder.parameters():
+            param.requires_grad = False
+
+    # You can also freeze specific components
+    # For example, freeze only the CNN part but not DINOv2:
+    # for param in matcher.encoder.cnn.parameters():
+    #     param.requires_grad = False
+
+    return matcher
+
 
 def train(args):
     dist.init_process_group('nccl')
