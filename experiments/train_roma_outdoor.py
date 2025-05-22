@@ -25,7 +25,8 @@ from romatch.checkpointing import CheckPoint
 
 resolutions = {"low":(448, 448), "medium":(14*8*5, 14*8*5), "high":(14*8*6, 14*8*6)}
 
-def get_model(pretrained_backbone=True, resolution = "medium", **kwargs):
+
+def get_model(pretrained_backbone=True, resolution = "medium", checkpoint_path=None, **kwargs):
     import warnings
     warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
     gp_dim = 512
@@ -199,6 +200,57 @@ def get_model(pretrained_backbone=True, resolution = "medium", **kwargs):
     return matcher
 
 
+def freeze_all_except_certainty(model):
+    """
+    Freeze all parameters except those that contribute to certainty prediction.
+
+    Based on the forward pass, certainties come from:
+    1. embedding_decoder (produces gm_certainty)
+    2. conv_refiner (produces delta_certainty)
+    """
+
+    # First, freeze everything
+    for param in model.parameters():
+        param.requires_grad = False
+
+    # Then unfreeze certainty-related components
+    print("Unfreezing certainty-related components:")
+
+    # 1. Unfreeze embedding_decoder (produces gm_certainty)
+    if hasattr(model, 'embedding_decoder'):
+        for param in model.embedding_decoder.parameters():
+            param.requires_grad = True
+        print("  ✓ embedding_decoder (produces gm_certainty)")
+
+    # 2. Unfreeze conv_refiner (produces delta_certainty)
+    if hasattr(model, 'conv_refiner'):
+        for param in model.conv_refiner.parameters():
+            param.requires_grad = True
+        print("  ✓ conv_refiner (produces delta_certainty)")
+
+    # 3. If the model has a decoder attribute that contains these components
+    if hasattr(model, 'decoder'):
+        if hasattr(model.decoder, 'embedding_decoder'):
+            for param in model.decoder.embedding_decoder.parameters():
+                param.requires_grad = True
+            print("  ✓ decoder.embedding_decoder")
+
+        if hasattr(model.decoder, 'conv_refiner'):
+            for param in model.decoder.conv_refiner.parameters():
+                param.requires_grad = True
+            print("  ✓ decoder.conv_refiner")
+
+    # Count trainable parameters
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    print(f"\nParameter Summary:")
+    print(f"  Total parameters: {total_params:,}")
+    print(f"  Trainable parameters: {trainable_params:,}")
+    print(f"  Frozen parameters: {total_params - trainable_params:,}")
+    print(f"  Trainable ratio: {trainable_params / total_params:.2%}")
+
+
 def get_model_for_finetuning(checkpoint_path: Path, resolution="medium", freeze_backbone=False, **kwargs):
     """
     Load model from checkpoint specifically for fine-tuning.
@@ -214,6 +266,7 @@ def get_model_for_finetuning(checkpoint_path: Path, resolution="medium", freeze_
                         checkpoint_path=checkpoint_path, **kwargs)
 
     # Optionally freeze parts of the model for fine-tuning
+    freeze_all_except_certainty(matcher)
     if freeze_backbone:
         print("Freezing backbone encoder...")
         for param in matcher.encoder.parameters():
@@ -244,9 +297,13 @@ def train(args):
     wandb_mode = "online" if wandb_log else "disabled"
     wandb.init(project="RoMa Certainty Fine-Tuning", entity='jelinek-vrg-fel-cvut-cz',
                name=experiment_name, reinit=False, mode=wandb_mode)
-    checkpoint_dir = "/mnt/personal/jelint19/weights/RoMa/checkpoints/"
+    roma_checkpoint_dir = Path("/mnt/personal/jelint19/weights/RoMa/")
+    checkpoint_dir = roma_checkpoint_dir / "checkpoints/"
+    pretrained_model_path = roma_checkpoint_dir / "roma_outdoor.pth"
+
     h, w = resolutions[resolution]
-    model = get_model(pretrained_backbone=True, resolution=resolution, attenuate_cert=False).to(dev)
+    # model = get_model(pretrained_backbone=True, resolution=resolution, attenuate_cert=False).to(dev)
+    model = get_model_for_finetuning(pretrained_model_path)
     # Num steps
     global_step = 0
     batch_size = args.gpu_batch_size
