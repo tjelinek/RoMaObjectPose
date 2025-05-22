@@ -10,6 +10,7 @@ import json
 import wandb
 
 from romatch.benchmarks import MegadepthDenseBenchmark
+from romatch.datasets.bop import BOPBuilder
 from romatch.datasets.megadepth import MegadepthBuilder
 from romatch.losses.robust_loss import RobustLosses
 from romatch.benchmarks import MegaDepthPoseEstimationBenchmark, MegadepthDenseBenchmark, HpatchesHomogBenchmark
@@ -180,11 +181,12 @@ def train(args):
     resolution = args.train_resolution
     wandb_log = not args.dont_log_wandb
     experiment_name = os.path.splitext(os.path.basename(__file__))[0]
-    wandb_mode = "online" if wandb_log and rank == 0 else "disabled"
-    wandb.init(project="romatch", entity=args.wandb_entity, name=experiment_name, reinit=False, mode = wandb_mode)
-    checkpoint_dir = "workspace/checkpoints/"
-    h,w = resolutions[resolution]
-    model = get_model(pretrained_backbone=True, resolution=resolution, attenuate_cert = False).to(device_id)
+    wandb_mode = "online" if wandb_log else "disabled"
+    wandb.init(project="RoMa Certainty Fine-Tuning", entity='jelinek-vrg-fel-cvut-cz',
+               name=experiment_name, reinit=False, mode=wandb_mode)
+    checkpoint_dir = "/mnt/personal/jelint19/weights/RoMa/checkpoints/"
+    h, w = resolutions[resolution]
+    model = get_model(pretrained_backbone=True, resolution=resolution, attenuate_cert=False).to(dev)
     # Num steps
     global_step = 0
     batch_size = args.gpu_batch_size
@@ -234,14 +236,14 @@ def train(args):
     grad_clip_norm = 0.01
     for n in range(romatch.GLOBAL_STEP, N, k * romatch.STEP_SIZE):
         mega_sampler = torch.utils.data.WeightedRandomSampler(
-            mega_ws, num_samples = batch_size * k, replacement=False
+            mega_ws, num_samples=batch_size * k, replacement=False
         )
         mega_dataloader = iter(
             torch.utils.data.DataLoader(
                 megadepth_train,
-                batch_size = batch_size,
-                sampler = mega_sampler,
-                num_workers = 8,
+                batch_size=batch_size,
+                sampler=mega_sampler,
+                num_workers=8,
             )
         )
         train_k_steps(
