@@ -298,6 +298,7 @@ def train(args):
     wandb.init(project="RoMa Certainty Fine-Tuning", entity='jelinek-vrg-fel-cvut-cz',
                name=experiment_name, reinit=False, mode=wandb_mode)
     roma_checkpoint_dir = Path("/mnt/personal/jelint19/weights/RoMa/")
+    roma_data_root = "/mnt/personal/jelint19/data/roma_training"
     checkpoint_dir = roma_checkpoint_dir / "checkpoints/"
     pretrained_model_path = roma_checkpoint_dir / "roma_outdoor.pth"
 
@@ -315,24 +316,28 @@ def train(args):
     k = 25000 // romatch.STEP_SIZE
 
     # Data
-    mega = MegadepthBuilder(data_root="data/megadepth", loftr_ignore=True, imc21_ignore = True)
+    mega = MegadepthBuilder(data_root=roma_data_root, loftr_ignore=True, imc21_ignore=True)
+    bop = BOPBuilder(data_root=Path("/mnt/personal/jelint19/data/bop"))
+    ho3d = None
+
     use_horizontal_flip_aug = True
     rot_prob = 0
     depth_interpolation_mode = "bilinear"
 
-    bop_train_handal = bop.build_scenes(dataset='handal', split='train')
+    bop_train_handal = bop.build_scenes(dataset='handal', split='train', min_overlap=0.35, shake_t=32,
+                                        use_horizontal_flip_aug=use_horizontal_flip_aug, ht=h, wt=w)
     # bop_train_hope = bop.build_scenes(dataset='hope')
 
     if args.train_also_on_megadepth:
         megadepth_train1 = mega.build_scenes(
-            split="train_loftr", min_overlap=0.01, shake_t=32, use_horizontal_flip_au=use_horizontal_flip_aug,
+            split="train_loftr", min_overlap=0.01, shake_t=32, use_horizontal_flip_aug=use_horizontal_flip_aug,
             rot_prob=rot_prob, ht=h, wt=w)
         megadepth_train2 = mega.build_scenes(
             split="train_loftr", min_overlap=0.35, shake_t=32, use_horizontal_flip_aug=use_horizontal_flip_aug,
             rot_prob=rot_prob, ht=h, wt=w)
         train_dataset = ConcatDataset(megadepth_train1 + megadepth_train2 + bop_train_handal)
     else:
-        train_dataset = bop_train_handal
+        train_dataset = ConcatDataset(bop_train_handal)
 
     mega_ws = mega.weight_scenes(train_dataset, alpha=0.75)
     # Loss and optimizer
@@ -350,8 +355,8 @@ def train(args):
     optimizer = torch.optim.AdamW(parameters, weight_decay=0.01)
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[int((9 * N / romatch.STEP_SIZE) // 10)])
-    megadense_benchmark = MegadepthDenseBenchmark("data/megadepth", num_samples=1000, h=h, w=w)
-    checkpointer = CheckPoint(checkpoint_dir, experiment_name)
+    megadense_benchmark = MegadepthDenseBenchmark(roma_data_root, num_samples=1000, h=h, w=w)
+    checkpointer = CheckPoint(str(checkpoint_dir), experiment_name)
     model, optimizer, lr_scheduler, global_step = checkpointer.load(model, optimizer, lr_scheduler, global_step)
     romatch.GLOBAL_STEP = global_step
     ddp_model = DDP(model, device_ids=[device_id], find_unused_parameters = False, gradient_as_bucket_view=True)

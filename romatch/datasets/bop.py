@@ -86,7 +86,7 @@ class BopScene:
 
         depth = cv2.imread(str(depth_ref), cv2.IMREAD_UNCHANGED)  # uint16
         depth_t = torch.from_numpy(depth).to(torch.float32) * 0.001
-        return depth_t
+        return depth_t.clone()
 
     def __len__(self):
         return len(self.pairs)

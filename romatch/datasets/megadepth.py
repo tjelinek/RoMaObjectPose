@@ -1,5 +1,5 @@
 import os
-from PIL import Image
+from PIL import Image, ImageFile
 import h5py
 import numpy as np
 import torch
@@ -7,6 +7,8 @@ import torchvision.transforms.functional as tvf
 import romatch
 from romatch.utils import *
 import math
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 class MegadepthScene:
@@ -87,7 +89,7 @@ class MegadepthScene:
 
     def load_depth(self, depth_ref, crop=None):
         depth = np.array(h5py.File(depth_ref, "r")["depth"])
-        return torch.from_numpy(depth)
+        return torch.from_numpy(depth).clone()
 
     def __len__(self):
         return len(self.pairs)
