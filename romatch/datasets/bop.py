@@ -181,8 +181,8 @@ class BOPBuilder:
         self.data_root: Path = data_root
 
     def build_scenes(self, dataset: str, split="train", min_overlap=0.0, scene_names=None, **kwargs):
-        path_to_scene = self.data_root / dataset / 'train_pbr'
-        all_scenes = np.array(os.listdir(path_to_scene))
+        path_to_scenes = self.data_root / dataset / 'train_pbr'
+        all_scenes = np.array(os.listdir(path_to_scenes))
 
         np.random.seed(42)
         indices = np.arange(len(all_scenes))
@@ -205,21 +205,12 @@ class BOPBuilder:
             raise ValueError(f"Split {split} not available")
 
         scenes = []
-        for scene_name in scene_names:
-            if self.loftr_ignore and scene_name in self.loftr_ignore_scenes:
-                continue
-            if self.imc21_ignore and scene_name in self.imc21_scenes:
-                continue
-            if ".npy" not in scene_name:
-                continue
-            scene_info = np.load(
-                os.path.join(self.scene_info_root, scene_name), allow_pickle=True
-            ).item()
-            scenes.append(
-                MegadepthScene(
-                    self.data_root, scene_info, min_overlap=min_overlap,scene_name = scene_name, **kwargs
-                )
-            )
+        for scene_name in sorted(scene_names):
+            scene_info_path = path_to_scenes / scene_name / 'scene_info.npy'
+
+            scene_info = np.load(scene_info_path, allow_pickle=True).item()
+
+            scenes.append(BopScene(self.data_root, scene_info, min_overlap=min_overlap, scene_name=scene_name, **kwargs))
         return scenes
 
     def weight_scenes(self, concat_dataset, alpha=0.5):
