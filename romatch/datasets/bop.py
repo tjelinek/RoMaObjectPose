@@ -28,7 +28,6 @@ class BopScene:
         colorjiggle_params = None,
         random_eraser = None,
         use_randaug = False,
-        randaug_params = None,
         randomize_size = False,
     ) -> None:
         self.data_root = data_root
@@ -57,11 +56,9 @@ class BopScene:
         # counts, bins = np.histogram(self.overlaps,20)
         # print(counts)
         self.im_transform_ops = get_tuple_transform_ops(
-            resize=(ht, wt), normalize=normalize, colorjiggle_params = colorjiggle_params,
+            resize=(ht, wt), normalize=normalize, colorjiggle_params=colorjiggle_params,
         )
-        self.depth_transform_ops = get_depth_tuple_transform_ops(
-                resize=(ht, wt)
-            )
+        self.depth_transform_ops = get_depth_tuple_transform_ops(resize=(ht, wt))
         self.wt, self.ht = wt, ht
         self.shake_t = shake_t
         self.random_eraser = random_eraser
