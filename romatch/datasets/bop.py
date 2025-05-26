@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
 
+import cv2
 from PIL import Image
-import h5py
 import numpy as np
 import torch
 import torchvision.transforms.functional as tvf
@@ -83,8 +83,10 @@ class BopScene:
         return im_A, im_B, depth_A, depth_B, K_A, K_B
     
     def load_depth(self, depth_ref, crop=None):
-        depth = np.array(h5py.File(depth_ref, "r")["depth"])
-        return torch.from_numpy(depth)
+
+        depth = cv2.imread(str(depth_ref), cv2.IMREAD_UNCHANGED)  # uint16
+        depth_t = torch.from_numpy(depth).to(torch.float32) * 0.001
+        return depth_t
 
     def __len__(self):
         return len(self.pairs)
