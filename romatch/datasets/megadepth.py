@@ -218,9 +218,7 @@ class MegadepthBuilder:
                 os.path.join(self.scene_info_root, scene_name), allow_pickle=True
             ).item()
             scenes.append(
-                MegadepthScene(
-                    self.data_root, scene_info, min_overlap=min_overlap,scene_name = scene_name, **kwargs
-                )
+                MegadepthScene(self.data_root, scene_info, min_overlap=min_overlap, scene_name = scene_name, **kwargs)
             )
         return scenes
 
