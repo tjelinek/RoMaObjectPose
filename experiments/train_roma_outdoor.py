@@ -319,16 +319,22 @@ def train(args):
     use_horizontal_flip_aug = True
     rot_prob = 0
     depth_interpolation_mode = "bilinear"
-    megadepth_train1 = mega.build_scenes(
-        split="train_loftr", min_overlap=0.01, shake_t=32, use_horizontal_flip_aug = use_horizontal_flip_aug, rot_prob = rot_prob,
-        ht=h,wt=w,
-    )
-    megadepth_train2 = mega.build_scenes(
-        split="train_loftr", min_overlap=0.35, shake_t=32, use_horizontal_flip_aug = use_horizontal_flip_aug, rot_prob = rot_prob,
-        ht=h,wt=w,
-    )
-    megadepth_train = ConcatDataset(megadepth_train1 + megadepth_train2)
-    mega_ws = mega.weight_scenes(megadepth_train, alpha=0.75)
+
+    bop_train_handal = bop.build_scenes(dataset='handal', split='train')
+    # bop_train_hope = bop.build_scenes(dataset='hope')
+
+    if args.train_also_on_megadepth:
+        megadepth_train1 = mega.build_scenes(
+            split="train_loftr", min_overlap=0.01, shake_t=32, use_horizontal_flip_au=use_horizontal_flip_aug,
+            rot_prob=rot_prob, ht=h, wt=w)
+        megadepth_train2 = mega.build_scenes(
+            split="train_loftr", min_overlap=0.35, shake_t=32, use_horizontal_flip_aug=use_horizontal_flip_aug,
+            rot_prob=rot_prob, ht=h, wt=w)
+        train_dataset = ConcatDataset(megadepth_train1 + megadepth_train2 + bop_train_handal)
+    else:
+        train_dataset = bop_train_handal
+
+    mega_ws = mega.weight_scenes(train_dataset, alpha=0.75)
     # Loss and optimizer
     depth_loss = RobustLosses(
         ce_weight=0.01,
@@ -357,7 +363,7 @@ def train(args):
         )
         mega_dataloader = iter(
             torch.utils.data.DataLoader(
-                megadepth_train,
+                train_dataset,
                 batch_size=batch_size,
                 sampler=mega_sampler,
                 num_workers=8,
@@ -368,6 +374,7 @@ def train(args):
         )
         checkpointer.save(model, optimizer, lr_scheduler, romatch.GLOBAL_STEP)
         wandb.log(megadense_benchmark.benchmark(model), step=romatch.GLOBAL_STEP)
+
 
 def test_mega_8_scenes(model, name):
     mega_8_scenes_benchmark = MegaDepthPoseEstimationBenchmark("data/megadepth",
@@ -415,13 +422,15 @@ if __name__ == "__main__":
     os.environ["OMP_NUM_THREADS"] = "16"
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
     import romatch
+
     parser = ArgumentParser()
     parser.add_argument("--only_test", action='store_true')
     parser.add_argument("--debug_mode", action='store_true', default=True)
     parser.add_argument("--dont_log_wandb", action='store_true')
     parser.add_argument("--train_resolution", default='medium')
     parser.add_argument("--gpu_batch_size", default=8, type=int)
-    parser.add_argument("--wandb_entity", required = False)
+    parser.add_argument("--wandb_entity", required=False)
+    parser.add_argument("--train_also_on_megadepth", default=False, required=False)
 
     args, _ = parser.parse_known_args()
     romatch.DEBUG_MODE = args.debug_mode
