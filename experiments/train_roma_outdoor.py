@@ -367,7 +367,7 @@ def train(args):
     model, optimizer, lr_scheduler, global_step = checkpointer.load(model, optimizer, lr_scheduler, global_step)
     romatch.GLOBAL_STEP = global_step
     ddp_model = DDP(model, device_ids=[device_id], find_unused_parameters = False, gradient_as_bucket_view=True)
-    grad_scaler = torch.cuda.amp.GradScaler(growth_interval=1_000_000)
+    grad_scaler = torch.amp.GradScaler('cuda', growth_interval=1_000_000)
     grad_clip_norm = 0.01
     for n in range(romatch.GLOBAL_STEP, N, k * romatch.STEP_SIZE):
         mega_sampler = torch.utils.data.WeightedRandomSampler(
