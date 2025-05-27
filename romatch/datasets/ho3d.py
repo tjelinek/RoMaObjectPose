@@ -183,9 +183,9 @@ class HO3DBuilder:
     def __init__(self, data_root=Path("/mnt/personal/jelint19/data/bop")) -> None:
         self.data_root: Path = data_root
 
-    def build_scenes(self, dataset: str, split="train", min_overlap=0.0, scene_names=None, **kwargs):
-        path_to_scenes = self.data_root / dataset / 'train_pbr'
-        all_scenes = np.array(os.listdir(path_to_scenes))
+    def build_scenes(self, split="train", min_overlap=0.0, scene_names=None, **kwargs):
+        path_to_scenes = self.data_root / 'train'
+        all_scenes = np.array(sorted(os.listdir(path_to_scenes)))
 
         np.random.seed(42)
         indices = np.arange(len(all_scenes))
@@ -217,7 +217,7 @@ class HO3DBuilder:
             scene_info = np.load(scene_info_path, allow_pickle=True).item()
 
             scenes.append(
-                BopScene(self.data_root, scene_info, min_overlap=min_overlap, scene_name=scene_name, **kwargs))
+                HO3DScene(self.data_root, scene_info, min_overlap=min_overlap, scene_name=scene_name, **kwargs))
         return scenes
 
     def weight_scenes(self, concat_dataset, alpha=0.5):

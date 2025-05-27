@@ -185,7 +185,7 @@ class BOPBuilder:
 
     def build_scenes(self, dataset: str, split="train", min_overlap=0.0, scene_names=None, **kwargs):
         path_to_scenes = self.data_root / dataset / 'train_pbr'
-        all_scenes = np.array(os.listdir(path_to_scenes))
+        all_scenes = np.array(sorted(os.listdir(path_to_scenes)))
 
         np.random.seed(42)
         indices = np.arange(len(all_scenes))
