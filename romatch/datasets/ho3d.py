@@ -64,10 +64,6 @@ class HO3DBuilder(SceneBuilder):
         for scene_name in sorted(scene_names):
             scene_info_path = path_to_scenes / scene_name / 'scene_info.npy'
 
-            if not scene_info_path.exists():
-                # TODO remove me
-                continue
-
             scene_info = np.load(scene_info_path, allow_pickle=True).item()
 
             scenes.append(
