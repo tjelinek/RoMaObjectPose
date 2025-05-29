@@ -1,6 +1,7 @@
 import torch
-import numpy as np
 import tqdm
+from torchvision import transforms
+
 from romatch.datasets import MegadepthBuilder
 from romatch.utils import warp_kpts
 from torch.utils.data import ConcatDataset
@@ -65,7 +66,27 @@ class MegadepthDenseBenchmark:
                     data["K1"].cuda(),
                     data["K2"].cuda(),
                 )
-                matches, certainty = model.match(im_A, im_B, batched=True)
+
+                to_pil = transforms.ToPILImage()
+
+                # Convert batched tensors to list of PIL images
+                pil_A_list = [to_pil(im_A[i].detach().cpu()) for i in range(im_A.size(0))]
+                pil_B_list = [to_pil(im_B[i].detach().cpu()) for i in range(im_B.size(0))]
+
+                # Process each pair individually with batched=False
+                matches_list = []
+                certainty_list = []
+
+                for pil_A, pil_B in zip(pil_A_list, pil_B_list):
+                    match, cert = model.match(pil_A, pil_B, batched=False)
+                    matches_list.append(match)
+                    certainty_list.append(cert)
+
+                # If you need to combine results back into batched format
+                matches = torch.stack(matches_list) if matches_list[0] is not None else None
+                certainty = torch.stack(certainty_list) if certainty_list[0] is not None else None
+
+                # matches, certainty = model.match(im_A, im_B, batched=True)
                 gd, pck_1, pck_3, pck_5, prob = self.geometric_dist(
                     depth1, depth2, T_1to2, K1, K2, matches
                 )
