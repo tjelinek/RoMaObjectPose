@@ -10,9 +10,10 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 import json
 import wandb
+from romatch.benchmarks.bop_benchmark import BOPBenchmark
 
-from romatch.benchmarks import MegadepthDenseBenchmark
 from romatch.datasets.bop import BOPBuilder
+from romatch.datasets.ho3d import HO3DBuilder
 from romatch.datasets.megadepth import MegadepthBuilder
 from romatch.losses.robust_loss import RobustLosses
 from romatch.benchmarks import MegaDepthPoseEstimationBenchmark, MegadepthDenseBenchmark, HpatchesHomogBenchmark
@@ -363,6 +364,8 @@ def train(args):
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[int((9 * N / romatch.STEP_SIZE) // 10)])
     megadense_benchmark = MegadepthDenseBenchmark(str(roma_data_root), num_samples=1000, h=h, w=w)
+    bop_benchmark = BOPBenchmark(bop_data_root, ['hope', 'handal'], num_samples=1000, h=h, w=w)
+
     checkpointer = CheckPoint(str(checkpoint_dir), experiment_name)
     model, optimizer, lr_scheduler, global_step = checkpointer.load(model, optimizer, lr_scheduler, global_step)
     romatch.GLOBAL_STEP = global_step

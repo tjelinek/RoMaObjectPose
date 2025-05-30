@@ -1,4 +1,5 @@
 from typing import List
+from pathlib import Path
 
 import torch
 import tqdm
@@ -11,7 +12,7 @@ import romatch
 
 class BOPBenchmark(Benchmark):
 
-    def __init__(self, data_root, datasets: List, h=384, w=512, num_samples=2000) -> None:
+    def __init__(self, data_root: Path, datasets: List, h=384, w=512, num_samples=2000) -> None:
         super().__init__()
 
         bop = BOPBuilder(data_root=data_root)
