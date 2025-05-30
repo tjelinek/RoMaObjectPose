@@ -2,42 +2,14 @@ import torch
 import tqdm
 from torchvision import transforms
 
+from romatch.benchmarks.megadepth_dense_benchmark import geometric_dist
 from romatch.datasets import MegadepthBuilder
 from romatch.utils import warp_kpts
 from torch.utils.data import ConcatDataset
 import romatch
 
-
-def geometric_dist(depth1, depth2, T_1to2, K1, K2, dense_matches):
-    b, h1, w1, d = dense_matches.shape
-    with torch.no_grad():
-        x1 = dense_matches[..., :2].reshape(b, h1 * w1, 2)
-        mask, x2 = warp_kpts(
-            x1.double(),
-            depth1.double(),
-            depth2.double(),
-            T_1to2.double(),
-            K1.double(),
-            K2.double(),
-        )
-        x2 = torch.stack(
-            (w1 * (x2[..., 0] + 1) / 2, h1 * (x2[..., 1] + 1) / 2), dim=-1
-        )
-        prob = mask.float().reshape(b, h1, w1)
-    x2_hat = dense_matches[..., 2:]
-    x2_hat = torch.stack(
-        (w1 * (x2_hat[..., 0] + 1) / 2, h1 * (x2_hat[..., 1] + 1) / 2), dim=-1
-    )
-    gd = (x2_hat - x2.reshape(b, h1, w1, 2)).norm(dim=-1)
-    gd = gd[prob == 1]
-    pck_1 = (gd < 1.0).float().mean()
-    pck_3 = (gd < 3.0).float().mean()
-    pck_5 = (gd < 5.0).float().mean()
-    return gd, pck_1, pck_3, pck_5, prob
-
-
-class MegadepthDenseBenchmark:
-    def __init__(self, data_root="data/megadepth", h = 384, w = 512, num_samples = 2000) -> None:
+class BOPBenchmark():
+    def __init__(self, data_root="data/megadepth", h=384, w = 512, num_samples = 2000) -> None:
         mega = MegadepthBuilder(data_root=data_root)
         self.dataset = ConcatDataset(
             mega.build_scenes(split="test_loftr", ht=h, wt=w)
@@ -89,9 +61,8 @@ class MegadepthDenseBenchmark:
                 certainty = torch.stack(certainty_list) if certainty_list[0] is not None else None
 
                 # matches, certainty = model.match(im_A, im_B, batched=True)
-                gd, pck_1, pck_3, pck_5, prob = geometric_dist(
-                    depth1, depth2, T_1to2, K1, K2, matches
-                )
+                gd, pck_1, pck_3, pck_5, prob = geometric_dist(depth1, depth2, T_1to2, K1, K2, matches)
+
                 if romatch.DEBUG_MODE:
                     from romatch.utils.utils import tensor_to_pil
                     import torch.nn.functional as F
@@ -102,7 +73,7 @@ class MegadepthDenseBenchmark:
                         im_B.cuda(), matches[:,:,:W, 2:], mode="bilinear", align_corners=False
                     )
                     warp_im = im_B_transfer_rgb
-                    c_b = certainty[:,None]#(certainty*0.9 + 0.1*torch.ones_like(certainty))[:,None]
+                    c_b = certainty[:,None]
                     vis_im = c_b * warp_im + (1 - c_b) * white_im
                     for b in range(B):
                         import os
