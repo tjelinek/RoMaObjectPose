@@ -1,19 +1,16 @@
 from typing import List
 from pathlib import Path
 
-import torch
-import tqdm
-from torchvision import transforms
 
-from romatch.benchmarks.base_benchmark import geometric_dist, Benchmark
+from romatch.benchmarks.base_benchmark import Benchmark
 from romatch.datasets.bop import BOPBuilder
 from torch.utils.data import ConcatDataset
-import romatch
+
 
 class BOPBenchmark(Benchmark):
 
     def __init__(self, data_root: Path, datasets: List, h=384, w=512, num_samples=2000) -> None:
-        super().__init__()
+        super().__init__('bop')
 
         bop = BOPBuilder(data_root=data_root)
 

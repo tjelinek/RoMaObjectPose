@@ -36,8 +36,8 @@ def geometric_dist(depth1, depth2, T_1to2, K1, K2, dense_matches):
 
 class Benchmark:
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, benchmark_prefix: str) -> None:
+        self.benchmark_prefix = benchmark_prefix
 
     def benchmark(self, model, batch_size=8):
         model.train(False)
@@ -116,8 +116,8 @@ class Benchmark:
                     pck_5_tot + pck_5,
                 )
         return {
-            "epe": gd_tot.item() / len(dataloader),
-            "mega_pck_1": pck_1_tot.item() / len(dataloader),
-            "mega_pck_3": pck_3_tot.item() / len(dataloader),
-            "mega_pck_5": pck_5_tot.item() / len(dataloader),
+            f"{self.benchmark_prefix}_epe": gd_tot.item() / len(dataloader),
+            f"{self.benchmark_prefix}_pck_1": pck_1_tot.item() / len(dataloader),
+            f"{self.benchmark_prefix}_pck_3": pck_3_tot.item() / len(dataloader),
+            f"{self.benchmark_prefix}_pck_5": pck_5_tot.item() / len(dataloader),
         }
