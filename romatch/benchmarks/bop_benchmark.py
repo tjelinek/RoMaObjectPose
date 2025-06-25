@@ -15,7 +15,7 @@ class BOPBenchmark(Benchmark):
         bop = BOPBuilder(data_root=data_root)
 
         self.dataset = ConcatDataset(
-            bop.build_scenes(dataset=dataset, split="test", ht=h, wt=w) for dataset in datasets
+            ConcatDataset(bop.build_scenes(dataset=dataset, split="test", ht=h, wt=w)) for dataset in datasets
         )  # fixed resolution of 384,512
         self.num_samples = num_samples
 
