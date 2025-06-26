@@ -350,15 +350,11 @@ def wrap_model_for_training(model, device, device_id, distributed):
 
 
 def train(args):
-    dist.init_process_group('nccl')
-    #torch._dynamo.config.verbose=True
-    gpus = int(os.environ['WORLD_SIZE'])
-    # create model and move it to GPU with id rank
-    rank = dist.get_rank()
-    print(f"Start running DDP on rank {rank}")
-    device_id = rank % torch.cuda.device_count()
-    romatch.LOCAL_RANK = device_id
-    torch.cuda.set_device(device_id)
+
+    device, device_id, rank, world_size, distributed = setup_device_and_distributed()
+
+    if device_id is not None:
+        romatch.LOCAL_RANK = device_id
     
     resolution = args.train_resolution
     wandb_log = not args.dont_log_wandb
@@ -373,10 +369,21 @@ def train(args):
     h, w = resolutions[resolution]
     # model = get_model(pretrained_backbone=True, resolution=resolution, attenuate_cert=False).to(dev)
     model = get_model_for_finetuning(pretrained_model_path)
+
+    wrapped_model = wrap_model_for_training(model, device, device_id, distributed)
+
     # Num steps
     global_step = 0
     batch_size = args.gpu_batch_size
-    step_size = gpus*batch_size
+
+    if distributed:
+        step_size = world_size * batch_size
+    elif torch.cuda.is_available() and torch.cuda.device_count() > 1:
+        # For DataParallel, effective batch size is still the same
+        step_size = batch_size
+    else:
+        step_size = batch_size
+
     romatch.STEP_SIZE = step_size
 
     N = (32 * 250000)  # 250k steps of batch size 32
@@ -437,8 +444,12 @@ def train(args):
     checkpointer = CheckPoint(str(checkpoint_dir), experiment_name)
     model, optimizer, lr_scheduler, global_step = checkpointer.load(model, optimizer, lr_scheduler, global_step)
     romatch.GLOBAL_STEP = global_step
-    ddp_model = DDP(model, device_ids=[device_id], find_unused_parameters = False, gradient_as_bucket_view=True)
-    grad_scaler = torch.amp.GradScaler('cuda', growth_interval=1_000_000)
+
+    if torch.cuda.is_available():
+        grad_scaler = torch.amp.GradScaler('cuda', growth_interval=1_000_000)
+    else:
+        grad_scaler = None
+
     grad_clip_norm = 0.01
     for n in range(romatch.GLOBAL_STEP, N, k * romatch.STEP_SIZE):
         mega_sampler = torch.utils.data.WeightedRandomSampler(
@@ -453,10 +464,12 @@ def train(args):
             )
         )
         train_k_steps(
-            n, k, mega_dataloader, ddp_model, depth_loss, optimizer, lr_scheduler, grad_scaler, grad_clip_norm = grad_clip_norm,
+            n, k, mega_dataloader, wrapped_model, depth_loss, optimizer, lr_scheduler, grad_scaler,
+            grad_clip_norm=grad_clip_norm,
         )
         checkpointer.save(model, optimizer, lr_scheduler, romatch.GLOBAL_STEP)
         wandb.log(megadense_benchmark.benchmark(model), step=romatch.GLOBAL_STEP)
+        wandb.log(bop_benchmark.benchmark(model), step=romatch.GLOBAL_STEP)
 
 
 def test_mega_8_scenes(model, name):
