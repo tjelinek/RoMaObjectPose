@@ -1,5 +1,6 @@
 import torch
 import tqdm
+from torch.utils.data import Dataset
 from torchvision import transforms
 
 import romatch
@@ -37,6 +38,8 @@ def geometric_dist(depth1, depth2, T_1to2, K1, K2, dense_matches):
 class Benchmark:
 
     def __init__(self, benchmark_prefix: str) -> None:
+        self.dataset: Dataset = None
+        self.num_samples: int = -1
         self.benchmark_prefix = benchmark_prefix
 
     def benchmark(self, model, batch_size=8):
@@ -53,7 +56,7 @@ class Benchmark:
             dataloader = torch.utils.data.DataLoader(
                 self.dataset, batch_size=B, num_workers=batch_size, sampler=sampler
             )
-            for idx, data in tqdm.tqdm(enumerate(dataloader), disable = romatch.RANK > 0):
+            for idx, data in tqdm.tqdm(enumerate(dataloader), disable=romatch.RANK > 0):
                 im_A, im_B, depth1, depth2, T_1to2, K1, K2 = (
                     data["im_A"].cuda(),
                     data["im_B"].cuda(),
@@ -121,3 +124,10 @@ class Benchmark:
             f"{self.benchmark_prefix}_pck_3": pck_3_tot.item() / len(dataloader),
             f"{self.benchmark_prefix}_pck_5": pck_5_tot.item() / len(dataloader),
         }
+
+
+class CombinedBenchmark(Benchmark):
+
+    pass
+
+
