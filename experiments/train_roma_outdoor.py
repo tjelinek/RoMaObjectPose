@@ -281,6 +281,74 @@ def get_model_for_finetuning(checkpoint_path: Path, resolution="medium", freeze_
     return matcher
 
 
+def setup_device_and_distributed():
+    """Setup device and distributed training based on available hardware"""
+    # Check if we're in a distributed environment
+    if 'WORLD_SIZE' in os.environ and 'RANK' in os.environ:
+        # Multi-GPU distributed training
+        world_size = int(os.environ['WORLD_SIZE'])
+        rank = int(os.environ['RANK'])
+
+        if torch.cuda.is_available():
+            dist.init_process_group('nccl')
+            device_id = rank % torch.cuda.device_count()
+            torch.cuda.set_device(device_id)
+            device = torch.device(f'cuda:{device_id}')
+        else:
+            dist.init_process_group('gloo')  # CPU distributed training
+            device = torch.device('cpu')
+            device_id = None
+
+        distributed = True
+        print(f"Start running DDP on rank {rank}/{world_size}")
+
+    elif torch.cuda.is_available() and torch.cuda.device_count() > 1:
+        # Single process multi-GPU (DataParallel)
+        world_size = 1
+        rank = 0
+        device_id = 0
+        device = torch.device('cuda:0')
+        distributed = False
+        print(f"Using DataParallel with {torch.cuda.device_count()} GPUs")
+
+    elif torch.cuda.is_available():
+        # Single GPU
+        world_size = 1
+        rank = 0
+        device_id = 0
+        device = torch.device('cuda:0')
+        distributed = False
+        print("Using single GPU")
+
+    else:
+        # CPU only
+        world_size = 1
+        rank = 0
+        device_id = None
+        device = torch.device('cpu')
+        distributed = False
+        print("Using CPU")
+
+    return device, device_id, rank, world_size, distributed
+
+
+def wrap_model_for_training(model, device, device_id, distributed):
+    """Wrap model appropriately based on training setup"""
+    model = model.to(device)
+
+    if distributed:
+        # Distributed training
+        if device_id is not None:
+            model = DDP(model, device_ids=[device_id], find_unused_parameters=False, gradient_as_bucket_view=True)
+        else:
+            model = DDP(model, find_unused_parameters=False)
+    elif torch.cuda.is_available() and torch.cuda.device_count() > 1:
+        # DataParallel for single-process multi-GPU
+        model = torch.nn.DataParallel(model)
+
+    return model
+
+
 def train(args):
     dist.init_process_group('nccl')
     #torch._dynamo.config.verbose=True
