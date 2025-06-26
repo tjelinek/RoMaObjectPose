@@ -1,0 +1,17 @@
+#!/bin/bash
+#SBATCH --time=23:59:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --gres=gpu:1
+#SBATCH --mem=128G
+#SBATCH --partition=gpu
+#SBATCH --job-name=ComputeSceneInfo
+#SBATCH --err=/mnt/personal/jelint19/results/SceneInfo.err
+#SBATCH --out=/mnt/personal/jelint19/results/SceneInfo.out
+
+modules_file=~/modules_glotracker.txt
+# shellcheck disable=SC2046
+ml $(<"$modules_file")
+
+python -m experiments.train_roma_outdoor
