@@ -6,9 +6,9 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mem=128G
 #SBATCH --partition=gpu
-#SBATCH --job-name=ComputeSceneInfo
-#SBATCH --err=/mnt/personal/jelint19/results/SceneInfo.err
-#SBATCH --out=/mnt/personal/jelint19/results/SceneInfo.out
+#SBATCH --job-name=RomaTraining
+#SBATCH --err=/mnt/personal/jelint19/results/RomaTraining.err
+#SBATCH --out=/mnt/personal/jelint19/results/RomaTraining.out
 
 modules_file=~/modules_glotracker.txt
 # shellcheck disable=SC2046
