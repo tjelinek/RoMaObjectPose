@@ -16,10 +16,11 @@ class BopScene(Scene):
         super().__init__(data_root, scene_info, ht, wt, min_overlap, max_overlap, shake_t, normalize, max_num_pairs,
                          scene_name, use_horizontal_flip_aug, use_single_horizontal_flip_aug, colorjiggle_params,
                          random_eraser, use_randaug, randomize_size)
+        self.depth_scale_to_meter = scene_info['depth_scale_to_meter']
 
     def load_depth(self, depth_ref, crop=None):
         depth = cv2.imread(str(depth_ref), cv2.IMREAD_UNCHANGED)  # uint16
-        depth_t = torch.from_numpy(depth).to(torch.float32) * 0.001
+        depth_t = torch.from_numpy(depth).to(torch.float32) * self.depth_scale_to_meter
         return depth_t.clone()
 
 
