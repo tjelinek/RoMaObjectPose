@@ -20,20 +20,29 @@ def log_param_statistics(named_parameters, norm_type = 2):
     wandb.log({"grad_norm": total_grad_norm.item()}, step = romatch.GLOBAL_STEP)
     wandb.log({"param_norm": param_norm.item()}, step = romatch.GLOBAL_STEP)
 
-def train_step(train_batch, model, objective, optimizer, grad_scaler, grad_clip_norm = 1.,**kwargs):
+def train_step(train_batch, model, objective, optimizer, grad_scaler=None, grad_clip_norm=1., **kwargs):
     optimizer.zero_grad()
-    out = model(train_batch)
-    l = objective(out, train_batch)
-    grad_scaler.scale(l).backward()
-    grad_scaler.unscale_(optimizer)
-    log_param_statistics(model.named_parameters())
-    torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm) # what should max norm be?
-    grad_scaler.step(optimizer)
-    grad_scaler.update()
-    wandb.log({"grad_scale": grad_scaler._scale.item()}, step = romatch.GLOBAL_STEP)
-    if grad_scaler._scale < 1.:
-        grad_scaler._scale = torch.tensor(1.).to(grad_scaler._scale)
-    romatch.GLOBAL_STEP = romatch.GLOBAL_STEP + romatch.STEP_SIZE # increment global step
+    use_amp = grad_scaler is not None
+
+    with torch.amp.autocast('cuda', enabled=use_amp):
+        out = model(train_batch)
+        l = objective(out, train_batch)
+
+    if use_amp:
+        grad_scaler.scale(l).backward()
+        grad_scaler.unscale_(optimizer)
+        log_param_statistics(model.named_parameters())
+        torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
+        grad_scaler.step(optimizer)
+        grad_scaler.update()
+        wandb.log({"grad_scale": grad_scaler._scale.item()}, step=romatch.GLOBAL_STEP)
+    else:
+        l.backward()
+        log_param_statistics(model.named_parameters())
+        torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
+        optimizer.step()
+
+    romatch.GLOBAL_STEP += romatch.STEP_SIZE
     return {"train_out": out, "train_loss": l.item()}
 
 
