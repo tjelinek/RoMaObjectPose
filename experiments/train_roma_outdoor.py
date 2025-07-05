@@ -378,7 +378,8 @@ def train(args):
 
     N = (32 * 250000)  # 250k steps of batch size 32
     # checkpoint every
-    k = 25000 // romatch.STEP_SIZE
+    # k = 25000 // romatch.STEP_SIZE
+    k = 2500 // romatch.STEP_SIZE
 
     # Data
     roma_data_root = Path("/mnt/personal/jelint19/data/roma_training")
