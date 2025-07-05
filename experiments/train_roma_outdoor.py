@@ -292,7 +292,8 @@ def setup_device_and_distributed():
         distributed = True
         print(f"Start running DDP on rank {rank}/{world_size}")
 
-    elif torch.cuda.is_available() and torch.cuda.device_count() > 1:
+    elif torch.cuda.is_available() and torch.cuda.device_count() > 1 and False:
+        # WARNING!!! This mode is unsafe, and does not work
         # Single process multi-GPU (DataParallel)
         world_size = 1
         rank = 0
