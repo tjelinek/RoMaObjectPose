@@ -249,16 +249,8 @@ def freeze_all_except_certainty(model):
     print(f"  Trainable ratio: {trainable_params / total_params:.2%}")
 
 
-def get_model_for_finetuning(checkpoint_path: Path, resolution="medium", freeze_backbone=False, **kwargs):
-    """
-    Load model from checkpoint specifically for fine-tuning.
-
-    Args:
-        checkpoint_path: Path to the checkpoint file
-        resolution: Model resolution
-        freeze_backbone: Whether to freeze the backbone encoder for fine-tuning
-        **kwargs: Additional arguments
-    """
+def get_model_for_finetuning(checkpoint_path: Path, resolution="medium", freeze_backbone=False,
+                             freeze_all_but_certainty: bool = False, **kwargs):
     # Load the model architecture (without pretrained backbone since we're loading from checkpoint)
     matcher = get_model(pretrained_backbone=False, resolution=resolution,
                         checkpoint_path=checkpoint_path, **kwargs)
