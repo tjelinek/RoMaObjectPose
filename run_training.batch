@@ -3,9 +3,9 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:4
 #SBATCH --mem=128G
-#SBATCH --partition=gpu
+#SBATCH --partition=amdgpulong
 #SBATCH --job-name=RomaTraining
 #SBATCH --err=/mnt/personal/jelint19/results/RomaTraining.err
 #SBATCH --out=/mnt/personal/jelint19/results/RomaTraining.out
@@ -14,4 +14,5 @@ modules_file=~/modules_glotracker.txt
 # shellcheck disable=SC2046
 ml $(<"$modules_file")
 
-python -m experiments.train_roma_outdoor
+which torchrun
+torchrun --nproc_per_node=4 -m experiments.train_roma_outdoor
