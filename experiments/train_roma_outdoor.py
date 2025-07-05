@@ -267,7 +267,8 @@ def get_model_for_finetuning(checkpoint_path: Path, resolution="medium", freeze_
                         checkpoint_path=checkpoint_path, **kwargs)
 
     # Optionally freeze parts of the model for fine-tuning
-    freeze_all_except_certainty(matcher)
+    if freeze_all_but_certainty:
+        freeze_all_except_certainty(matcher)
     if freeze_backbone:
         print("Freezing backbone encoder...")
         for param in matcher.encoder.parameters():
@@ -407,10 +408,10 @@ def train(args):
                                         use_horizontal_flip_aug=use_horizontal_flip_aug, ht=h, wt=w)
     bop_train_hope = bop.build_scenes(dataset='hope', split='train', min_overlap=0.35, shake_t=32,
                                       use_horizontal_flip_aug=use_horizontal_flip_aug, ht=h, wt=w)
-    train_ho3d = ho3d.build_scenes(split="train", min_overlap=0.35, shake_t=32,
-                                   use_horizontal_flip_aug=use_horizontal_flip_aug, ht=h, wt=w)
+    # train_ho3d = ho3d.build_scenes(split="train", min_overlap=0.35, shake_t=32,
+    #                                use_horizontal_flip_aug=use_horizontal_flip_aug, ht=h, wt=w)
 
-    fine_tuning_scenes = bop_train_handal + bop_train_hope + train_ho3d
+    fine_tuning_scenes = bop_train_hope + bop_train_handal #+ bop_train_hope# + train_ho3d
     if args.train_also_on_megadepth:
         megadepth_train1 = mega.build_scenes(
             split="train_loftr", min_overlap=0.01, shake_t=32, use_horizontal_flip_aug=use_horizontal_flip_aug,
@@ -521,7 +522,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument("--only_test", action='store_true')
-    parser.add_argument("--debug_mode", action='store_true', default=True)
+    parser.add_argument("--debug_mode", action='store_true', default=False)
     parser.add_argument("--dont_log_wandb", action='store_true')
     parser.add_argument("--train_resolution", default='medium')
     parser.add_argument("--gpu_batch_size", default=8, type=int)
