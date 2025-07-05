@@ -341,12 +341,11 @@ def wrap_model_for_training(model, device, device_id, distributed):
 
 
 def train(args):
-
     device, device_id, rank, world_size, distributed = setup_device_and_distributed()
 
     if device_id is not None:
         romatch.LOCAL_RANK = device_id
-    
+
     resolution = args.train_resolution
     wandb_log = not args.dont_log_wandb
     experiment_name = os.path.splitext(os.path.basename(__file__))[0]
@@ -402,7 +401,7 @@ def train(args):
     # train_ho3d = ho3d.build_scenes(split="train", min_overlap=0.35, shake_t=32,
     #                                use_horizontal_flip_aug=use_horizontal_flip_aug, ht=h, wt=w)
 
-    fine_tuning_scenes = bop_train_hope + bop_train_handal #+ bop_train_hope# + train_ho3d
+    fine_tuning_scenes = bop_train_hope + bop_train_handal  #+ bop_train_hope# + train_ho3d
     if args.train_also_on_megadepth:
         megadepth_train1 = mega.build_scenes(
             split="train_loftr", min_overlap=0.01, shake_t=32, use_horizontal_flip_aug=use_horizontal_flip_aug,
