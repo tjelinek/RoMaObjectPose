@@ -388,7 +388,7 @@ def train(args):
 
     mega = MegadepthBuilder(data_root=roma_data_root, loftr_ignore=True, imc21_ignore=True)
     bop = BOPBuilder(data_root=bop_data_root)
-    ho3d = HO3DBuilder(data_root=ho3d_data_root)
+    # ho3d = HO3DBuilder(data_root=ho3d_data_root)
 
     use_horizontal_flip_aug = True
     rot_prob = 0
