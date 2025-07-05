@@ -505,6 +505,22 @@ def test_hpatches(model, name):
     json.dump(hpatches_results, open(f"results/hpatches_{name}.json", "w"))
 
 
+def get_auto_batch_size():
+    try:
+        import torch
+        if torch.cuda.is_available():
+            total_gb = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
+            if total_gb >= 100:
+                return 16
+            elif total_gb >= 50:
+                return 8
+            else:
+                return 4
+    except:
+        pass
+    return 4
+
+
 if __name__ == "__main__":
     os.environ["TORCH_CUDNN_V8_API_ENABLED"] = "1"  # For BF16 computations
     os.environ["OMP_NUM_THREADS"] = "16"
@@ -516,7 +532,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug_mode", action='store_true', default=False)
     parser.add_argument("--dont_log_wandb", action='store_true')
     parser.add_argument("--train_resolution", default='medium')
-    parser.add_argument("--gpu_batch_size", default=8, type=int)
+    parser.add_argument("--gpu_batch_size", default=get_auto_batch_size(), type=int)
     parser.add_argument("--wandb_entity", required=False)
     parser.add_argument("--train_also_on_megadepth", default=False, required=False)
 
